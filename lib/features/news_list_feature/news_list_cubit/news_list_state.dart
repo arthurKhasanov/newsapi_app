@@ -9,9 +9,15 @@ class NewsListLoadingState extends NewsListState {
 }
 
 class NewsListLoadedState extends NewsListState {
-  NewsListLoadedState({required this.articles});
+  NewsListLoadedState({
+    required this.articles,
+    required this.totalPages,
+    required this.currentPage,
+  });
 
   final List<NewsArticle> articles;
+  final List<int> totalPages;
+  final int currentPage;
 
   @override
   List<Object?> get props => [articles];

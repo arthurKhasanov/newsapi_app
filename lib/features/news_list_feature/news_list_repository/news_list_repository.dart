@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:newapi_app/features/models/news_article_model/news_article_model.dart';
 import 'package:newapi_app/features/news_list_feature/news_list_interface/news_list_interface.dart';
 import 'package:newapi_app/utils/locator.dart';
@@ -24,9 +23,10 @@ class NewsListRepository extends NewsListInterface {
     final List<NewsArticle> articles = (response.data['articles'] as List)
         .map((json) => NewsArticle.fromJson(json))
         .toList();
-    debugPrint('==getArtocles== $articles');
     return articles;
   }
+
+
 }
 
 

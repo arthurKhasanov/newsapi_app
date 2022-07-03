@@ -7,25 +7,30 @@ import 'package:newapi_app/features/news_list_feature/news_list_interface/news_l
 
 class NewsListCubit extends Cubit<NewsListState> {
   NewsListCubit(this._newsListRepository) : super(NewsListLoadingState()) {
-    init();
+    getArticles();
   }
 
   final NewsListInterface _newsListRepository;
   Filter filter = const Filter();
+  late List<NewsArticle> articles;
+  List<NewsArticle> sortedByTitleArticles = [];
   bool isReversed = false;
+  bool searchByTitle = false;
+  int currentPage = 1;
 
-  init() async {
+  //Получаем все статьи по ключу
+  getArticles() async {
+    searchByTitle = false;
     emit(NewsListLoadingState());
     try {
-      final List<NewsArticle> articles =
+      final List<NewsArticle> newArticles =
           await _newsListRepository.getNewsArticles(filterToQuery());
+      articles = newArticles;
       if (articles.isNotEmpty) {
-        if(isReversed) {
-          emit(NewsListLoadedState(articles: articles.reversed.toList()));
-        } else {
-          emit(NewsListLoadedState(articles: articles));
-        }
-        
+        emit(NewsListLoadedState(
+            articles: getCurrentArticleList(),
+            totalPages: List.generate(countPages(), (int index) => index + 1),
+            currentPage: 1));
       } else {
         emit(NewsListEmptyState());
       }
@@ -35,26 +40,53 @@ class NewsListCubit extends Cubit<NewsListState> {
     }
   }
 
-  addFilter(String field, String filterPart) {
-    if (field == 'from') {
-      filter = filter.copyWith(from: filterPart);
-    } else if (field == 'to') {
-      filter = filter.copyWith(to: filterPart);
-    } else if (field == 'search') {
-      filter = filter.copyWith(search: filterPart);
+  int countPages() {
+    if(searchByTitle) {
+      var totalPages = (sortedByTitleArticles.length / 4).ceil();
+    return totalPages;
+    } else {
+      var totalPages = (articles.length / 4).ceil();
+    return totalPages;
     }
-    init();
+    
+  }
+
+  List<NewsArticle> getCurrentArticleList() {
+    if (isReversed) {
+      articles = articles.reversed.toList();
+    }
+
+    int startIndex = (currentPage - 1) * 4;
+    int endIndex = (currentPage * 4);
+    if (searchByTitle) {
+      List<NewsArticle> currentList = sortedByTitleArticles.sublist(
+          startIndex,
+          endIndex <= sortedByTitleArticles.length
+              ? endIndex
+              : sortedByTitleArticles.length);
+      return currentList;
+    } else {
+      List<NewsArticle> currentList = articles.sublist(
+          startIndex, endIndex <= articles.length ? endIndex : articles.length);
+      return currentList;
+    }
+  }
+
+  addFilter(Filter newFilter) {
+    filter = newFilter;
+    currentPage = 1;
+    getArticles();
   }
 
   changeOrder() {
     isReversed = !isReversed;
-    init();
   }
 
+  //Превращаем фильтр в запрос
   String filterToQuery() {
     List<String> res = [];
     if (filter.search != null && filter.search!.isNotEmpty) {
-      final request = 'qInTitle=${filter.search}';
+      final request = 'q=${filter.search}';
       res.add(request);
     } else {
       const request = 'q=iOS';
@@ -69,5 +101,32 @@ class NewsListCubit extends Cubit<NewsListState> {
       res.add(request);
     }
     return res.join();
+  }
+
+  findArticlesByTitle(String title) {
+    sortedByTitleArticles = [];
+    for (var article in articles) {
+      if (article.title != null && article.title!.contains(title)) {
+        sortedByTitleArticles.add(article);
+      }
+    }
+    if (sortedByTitleArticles.isNotEmpty) {
+      emit(NewsListLoadingState());
+      emit(NewsListLoadedState(
+          articles: getCurrentArticleList(),
+          totalPages: List.generate(countPages(), (int index) => index + 1),
+          currentPage: 1));
+    } else {
+      emit(NewsListEmptyState());
+    }
+  }
+
+  choosePage(int page) {
+    currentPage = page;
+    emit(NewsListLoadedState(
+      articles: getCurrentArticleList(),
+      totalPages: List.generate(countPages(), (int index) => index + 1),
+      currentPage: page,
+    ));
   }
 }
